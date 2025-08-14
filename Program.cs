@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using CommandLine;
+﻿using CommandLine;
 
 namespace X_pense;
 
@@ -9,9 +8,9 @@ public class Program
     {
         Parser.Default.ParseArguments<AddOptions, ListOptions, DeleteOptions, SummaryOptions>(args).MapResult(
             (AddOptions o) => { AddExpense(o.Description, o.Amount);  return 0; },
-            (ListOptions o) => { ListExpenses();  return 0; },
+            (ListOptions o) => { ListExpenses(o.Category);  return 0; },
             (DeleteOptions o) => { DeleteExpense(o.Id);  return 0; },
-            (SummaryOptions o) => { GetSummary(o.Month);  return 0; },
+            (SummaryOptions o) => { GetSummary(o.Category, o.Month);  return 0; },
             errs => 1
         );
     }
@@ -32,11 +31,15 @@ public class Program
     }
 
     [Verb("list", HelpText = "List all expenses.")]
-    public class ListOptions { }
-
-    static void ListExpenses()
+    public class ListOptions
     {
-        Functions.List();
+        [Option('c', "category", Required = false, HelpText = "Category to filter by (optional).")]
+        public string? Category { get; set; }
+    }
+
+    static void ListExpenses(string? category)
+    {
+        Functions.List(category);
     }
 
     [Verb("delete", HelpText = "Delete an expense by ID.")]
@@ -54,12 +57,19 @@ public class Program
     [Verb("summary", HelpText = "Get total expenses by month.")]
     public class SummaryOptions
     {
-        [Option('m', "month", Required = false, HelpText = "Month number to summarize.")]
+        [Option('m', "month", Required = false, HelpText = "Month number to summarize (optional).")]
         public int Month { get; set; }
+        [Option('c', "category", Required = false, HelpText = "Category to summarize (optional).")]
+        public string? Category { get; set; }
     }
 
-    static void GetSummary(int month)
+    static void GetSummary(string? category, int month)
     {
-        Functions.Summary(month);
+        if (month < 0 || month > 12)
+        {
+            Console.WriteLine("Month number not valid. Must be between 1-12.");
+            return;
+        }
+        Functions.Summary(category, month);
     }
 }

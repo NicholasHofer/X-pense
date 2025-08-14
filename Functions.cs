@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using static X_pense.Models;
 
 
@@ -12,7 +13,7 @@ public class Functions
         string filePath = Path.Combine(directory, "Expenses.csv");
 
         if (!Directory.Exists(directory)) Directory.CreateDirectory(directory); // Create folder if missing
-        if (!File.Exists(filePath)) File.WriteAllText(filePath, "ID,Date,Description,Amount\n"); // Create file if missing
+        if (!File.Exists(filePath)) File.WriteAllText(filePath, "ID,Date,Description,Amount,Category\n"); // Create file if missing
 
         return filePath;
     }
@@ -39,7 +40,7 @@ public class Functions
         }
     }
 
-    public static void List()
+    public static void List(string? category = null)
     {
         try
         {
@@ -49,16 +50,17 @@ public class Functions
             }
 
             List<Expense> expenseList = GetExpenseList();
+            var filteredExpenseList = expenseList.Where(x => category is null || x.Category == category);
 
             // print a header first
-            Console.WriteLine("---------------------------------------------------------------------");
-            Console.WriteLine("{0,-7}{1,-15}{2,-30}{3,-15}", "ID", "DATE", "DESCRIPTION", "AMOUNT");
-            Console.WriteLine("---------------------------------------------------------------------");
+            Console.WriteLine("------------------------------------------------------------------------------------------");
+            Console.WriteLine("{0,-7}{1,-15}{2,-30}{3,-15}{4,-25}", "ID", "DATE", "DESCRIPTION", "AMOUNT", "CATEGORY");
+            Console.WriteLine("------------------------------------------------------------------------------------------");
 
             // print values in the list
-            foreach (Expense e in expenseList)
+            foreach (Expense e in filteredExpenseList)
             {
-                Console.WriteLine("{0,-7}{1,-15}{2,-30}{3,-15}", e.ID, DateOnly.FromDateTime(e.Date), e.Description, $"$ {e.Amount}");
+                Console.WriteLine("{0,-7}{1,-15}{2,-30}{3,-15}{4,-25}", e.ID, DateOnly.FromDateTime(e.Date), e.Description, $"$ {e.Amount}", e.Category);
             }
 
         }
@@ -68,7 +70,7 @@ public class Functions
         }
     }
 
-    public static void Summary(int month = 0)
+    public static void Summary(string? category, int month = 0)
     {
         try
         {
@@ -78,9 +80,9 @@ public class Functions
             }
 
             List<Expense> expenseList = GetExpenseList();
-            decimal total = expenseList.Where(x => x.Date.Month == month || month == 0).Sum(x => x.Amount);
+            decimal total = expenseList.Where(x => (x.Date.Month == month || month == 0) && (category is null || x.Category == category)).Sum(x => x.Amount);
 
-            Console.WriteLine($"Total expenses for {(month == 0 ? "all months" : CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month))}: $ {total}");
+            Console.WriteLine($"Total {(category is null ? "of all" : category)} expenses for {(month == 0 ? "all months" : CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month))}: $ {total}");
 
         }
         catch (Exception ex)
@@ -182,6 +184,7 @@ public class Functions
                 expense.Date = Convert.ToDateTime(values[1]);
                 expense.Description = values[2];
                 expense.Amount = Convert.ToDecimal(values[3]);
+                expense.Category = values[4];
 
                 expenseList.Add(expense);
             }
