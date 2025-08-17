@@ -1,7 +1,5 @@
 using System.Globalization;
-using System.Runtime.InteropServices;
 using static X_pense.Models;
-
 
 namespace X_pense;
 
@@ -12,31 +10,97 @@ public class Functions
         string directory = Path.Combine(AppContext.BaseDirectory, "Data");
         string filePath = Path.Combine(directory, "Expenses.csv");
 
+
         if (!Directory.Exists(directory)) Directory.CreateDirectory(directory); // Create folder if missing
-        if (!File.Exists(filePath)) File.WriteAllText(filePath, "ID,Date,Description,Amount,Category\n"); // Create file if missing
+        if (!File.Exists(filePath)) File.WriteAllText(filePath, "ID,Date,Description,Amount,Category\n"); // Create expense file if missing
+
 
         return filePath;
     }
 
+    private static string GetBudgetFilePath()
+    {
+        string directory = Path.Combine(AppContext.BaseDirectory, "Data");
+        string filePathBudget = Path.Combine(directory, "Budget.csv");
+
+        if (!Directory.Exists(directory)) Directory.CreateDirectory(directory); // Create folder if missing
+        if (!File.Exists(filePathBudget)) File.WriteAllText(filePathBudget, "Month,Amount\n"); // Create budget file if missing
+
+        return filePathBudget;
+    }
 
 
-    public static void Add(string description, decimal amount)
+    public static void Add(string description, decimal amount, string category)
     {
         try
         {
             string filePath = GetFilePath();
             int ID = GetNextID(filePath);
-            string newLine = $"{ID},{DateTime.Today:yyyy-MM-dd},{description},{amount}";
+            string newLine = $"{ID},{DateTime.Today:yyyy-MM-dd},{description},{amount},{category}";
 
             using (StreamWriter writer = new StreamWriter(filePath, true))
             {
                 writer.WriteLine(newLine);
             }
             Console.WriteLine($"Expense added successfully (ID {ID})");
+
+            // Check budget for this month
+            var budgetList = GetBudgetList();
+            decimal monthlyBudget = budgetList.Where(x => x.Month == DateTime.Today.Month).Select(x => x.Amount).FirstOrDefault();
+            var expenseList = GetExpenseList();
+            decimal currentMonthlyTotal = expenseList.Where(x => x.Date.Month == DateTime.Today.Month).Select(x => x.Amount).Sum();
+
+            Console.WriteLine($"Monthly total for {CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(DateTime.Today.Month)}: ${currentMonthlyTotal}");
+            Console.WriteLine($"Monthly budget for {CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(DateTime.Today.Month)}: ${monthlyBudget}");
+
+            decimal pctUsed = currentMonthlyTotal / monthlyBudget * 100;
+            Console.WriteLine($"Total percentage of budget used: {Convert.ToInt16(pctUsed)}%");
+            if (Convert.ToInt16(pctUsed) > 100)
+            {
+                Console.WriteLine("WARNING: MONTHLY BUDGET EXCEEDED");
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Unable to add expense due to the following error: \n{ex}");
+        }
+    }
+
+    public static void SetBudget(int month, decimal amount)
+    {
+        try
+        {
+            if (month < 1 || month > 12)
+            {
+                Console.WriteLine("Month not valid. Must be a number between 1 and 12.");
+                return;
+            }
+
+            // Load existing budget list from file
+            var budgetList = GetBudgetList();
+
+            // Set budget for specified month
+            var existingBudget = budgetList.FirstOrDefault(x => x.Month == month);
+
+            if (existingBudget != null) // if a budget already exists for a month, update it
+            {
+                existingBudget.Amount = amount;
+                Console.WriteLine($"Updated budget for {CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month)}: {amount:C}");
+            }
+            else // if budget doesn't exist for month, add it
+            {
+                budgetList.Add(new Budget { Month = month, Amount = amount });
+                Console.WriteLine($"Added budget for {CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month)}: {amount:C}");
+            }
+
+            // Save changes to csv file
+            var lines = new List<string> { "Month,Amount" }; //header
+            lines.AddRange(budgetList.Select(x => $"{x.Month},{x.Amount}"));
+            File.WriteAllLines(GetBudgetFilePath(), lines);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unable to set budget:\n{ex}");
         }
     }
 
@@ -191,6 +255,38 @@ public class Functions
 
             return expenseList;
         }
+    }
+
+    private static List<Budget> GetBudgetList()
+    {
+        string filePathBudget = GetBudgetFilePath();
+        var budgetList = new List<Budget>();
+
+        using (StreamReader reader = new StreamReader(filePathBudget))
+        {
+            bool isFirstLine = true;
+            while (!reader.EndOfStream)
+            {
+                var line = reader.ReadLine();
+
+                if (line == null)
+                {
+                    continue;
+                }
+
+                // skip header row
+                if (isFirstLine)
+                {
+                    isFirstLine = false;
+                    continue;
+                }
+
+                var values = line.Split(',');
+                budgetList.Add(new Budget { Month = int.Parse(values[0]), Amount = Convert.ToDecimal(values[1]) });
+            }
+        }
+
+        return budgetList;
     }
 
     private static bool FileEmpty()

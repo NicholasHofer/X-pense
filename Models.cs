@@ -15,4 +15,10 @@ public class Models
 
         }
     }
+
+    public class Budget
+    {
+        public int Month { get; set; }
+        public decimal Amount { get; set; }
+    }
 }
