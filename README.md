@@ -4,19 +4,22 @@ This app was created for the "Expense Tracker" project on Roadmap.sh: https://ro
 
 Commands:
 
-**add** - Add a new expense. {options: --description, --amount}
+**add** - Add a new expense. {options: --description, --amount, --category}
 
-**list** - List all expenses. {options: --category[optional}
+**list** - List all expenses. {options: --category[optional]}
 
 **delete** - Delete an expense by ID. {options: --id}
 
-**summary** - Get total expenses by month. {options: --month[optional], --category[optional}
+**summary** - Get total expenses by month. {options: --month[optional], --category[optional]}
+
+**budget** - Sets a budget for specified month. {options: --month, --amount}
 
 Examples:
-add --description "Water bill" --amount 125.87
+add --description "Water bill" --amount 125.87 --category "Utilities"
 list
 list --category "Entertainment"
 delete --id 3
 summary --month 8
 summary --month 6 --category "Utilities"
 summary 
+budget --month 4 --amount 1000
